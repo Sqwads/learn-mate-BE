@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      # Mount source code for development (optional)
+      - .:/app
+    environment:
+      - USE_REAL_JWT=true
+    depends_on:
+      - db
+    networks:
+      - learnmate-network
+
+  db:
+    image: supabase/postgres:15.1.0.147
+    ports:
+      - "54322:5432"
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - supabase_data:/var/lib/postgresql/data
+    networks:
+      - learnmate-network
+
+volumes:
+  supabase_data:
+
+networks:
+  learnmate-network:
+    driver: bridge
