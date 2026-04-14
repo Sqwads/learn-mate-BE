@@ -9,6 +9,17 @@ import json
 
 router = APIRouter(tags=["Submissions"])
 
+
+def parse_submission_json_fields(submission: dict) -> dict:
+    """Parse JSON string fields back to Python objects"""
+    if submission.get("mcq_answers") and isinstance(submission["mcq_answers"], str):
+        try:
+            submission["mcq_answers"] = json.loads(submission["mcq_answers"])
+        except:
+            submission["mcq_answers"] = None
+    return submission
+
+
 @router.post("/", response_model=SubmissionResponse)
 def submit_assignment(
     submission: SubmissionCreate,
@@ -58,7 +69,8 @@ def submit_assignment(
         }
 
         result = supabase.table("submissions").insert(submission_data).execute()
-        return SubmissionResponse(**result.data[0])
+        parsed_result = parse_submission_json_fields(result.data[0])
+        return SubmissionResponse(**parsed_result)
     except HTTPException:
         raise
     except Exception as e:
@@ -88,7 +100,8 @@ def get_assignment_submissions(
             raise HTTPException(status_code=403, detail="Access denied")
 
         result = supabase.table("submissions").select("*").eq("assignment_id", assignment_id).eq("school_id", str(school_id)).execute()
-        return [SubmissionResponse(**submission) for submission in result.data]
+        parsed_submissions = [parse_submission_json_fields(submission) for submission in result.data]
+        return [SubmissionResponse(**submission) for submission in parsed_submissions]
     except HTTPException:
         raise
     except Exception as e:
@@ -109,7 +122,8 @@ def get_my_submissions(
             raise HTTPException(status_code=403, detail="Only students can view their submissions")
 
         result = supabase.table("submissions").select("*").eq("student_id", user["id"]).eq("school_id", str(school_id)).execute()
-        return [SubmissionResponse(**submission) for submission in result.data]
+        parsed_submissions = [parse_submission_json_fields(submission) for submission in result.data]
+        return [SubmissionResponse(**submission) for submission in parsed_submissions]
     except HTTPException:
         raise
     except Exception as e:
@@ -143,7 +157,8 @@ def get_submission(
 
         # Remove nested data before returning
         submission.pop("assignments", None)
-        return SubmissionResponse(**submission)
+        parsed_submission = parse_submission_json_fields(submission)
+        return SubmissionResponse(**parsed_submission)
     except HTTPException:
         raise
     except Exception as e:
@@ -182,9 +197,11 @@ def update_submission(
 
         if update_data:
             result = supabase.table("submissions").update(update_data).eq("id", submission_id).eq("school_id", str(school_id)).execute()
-            return SubmissionResponse(**result.data[0])
+            parsed_result = parse_submission_json_fields(result.data[0])
+            return SubmissionResponse(**parsed_result)
         else:
-            return SubmissionResponse(**existing.data[0])
+            parsed_existing = parse_submission_json_fields(existing.data[0])
+            return SubmissionResponse(**parsed_existing)
     except HTTPException:
         raise
     except Exception as e:
